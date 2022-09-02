@@ -1,3 +1,4 @@
+import os
 import requests
 import json
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
@@ -17,14 +18,14 @@ load_dotenv()
 def connex_post(url,dat):
 
   uname=os.environ.get("username")
-  pswd=os.environ.get("password"
+  pswd=os.environ.get("password")
   response = requests.post( url, data=dat, auth=(uname, pswd),verify=False)  
   return response.json()
 
 # connection to get orders
 def connex_get(url_,tok):
   uname=os.environ.get("username")
-  pswd=os.environ.get("password"
+  pswd=os.environ.get("password")
   payload={"username": uname,"password": pswd}
   headers = {
     'Accept': 'application/json',
@@ -42,7 +43,7 @@ __url="https://{}/api/v2".format(cb_server)
 
 #POST method to get the Token for the session
 uname=os.environ.get("username")
-pswd=os.environ.get("password"
+pswd=os.environ.get("password")
 url_token = "{}/api-token-auth/".format(__url)
 data_token={"username": uname,"password": pswd}
 res=connex_post(url_token,data_token)
