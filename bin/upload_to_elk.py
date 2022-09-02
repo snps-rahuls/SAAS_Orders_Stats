@@ -2,23 +2,22 @@ import json
 import requests
 from elasticsearch import Elasticsearch
 import elasticsearch.helpers as help
-import configparser
 import sys
 import os, uuid
 from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient, __version__
+from dotenv import load_dotenv
 
-config = configparser.ConfigParser()
-config.read('../conf/info.conf')
+load_dotenv()
 
-ES_server=config['Elastic_Creds']['server']
+ES_server=os.environ.get("server")
 es = Elasticsearch([ES_server])
-es_index_pattern=config['Elastic_Creds']['index']
+es_index_pattern=os.environ.get("index")
 
 
 try:
-    connect_str=config['DEFAULT']['blob_conn_string']
+    connect_str=os.environ.get("blob_conn_string")
     blob_service_client = BlobServiceClient.from_connection_string(connect_str)
-    container_name=config['DEFAULT']['blob_container_name']
+    container_name=os.environ.get("blob_container_name")
     local_path="../output/"
 
 except Exception as ex:

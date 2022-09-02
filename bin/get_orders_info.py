@@ -1,5 +1,4 @@
 import requests
-import configparser
 import json
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from extract import json_extract
@@ -7,25 +6,25 @@ import pytz
 import datetime
 import sys
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+from dotenv import load_dotenv
 
+load_dotenv()
 
-config = configparser.ConfigParser()
-config.read('../conf/info.conf')
 
 
 # #GET orders---captures the data using API according to page number in reverse order that will later be sorted and captures the last(last__)page number
 # #Connection for token
 def connex_post(url,dat):
 
-  uname=config['CB_Info']['username']
-  pswd=config['CB_Info']['password']
+  uname=os.environ.get("username")
+  pswd=os.environ.get("password"
   response = requests.post( url, data=dat, auth=(uname, pswd),verify=False)  
   return response.json()
 
 # connection to get orders
 def connex_get(url_,tok):
-  uname=config['CB_Info']['username']
-  pswd=config['CB_Info']['password']
+  uname=os.environ.get("username")
+  pswd=os.environ.get("password"
   payload={"username": uname,"password": pswd}
   headers = {
     'Accept': 'application/json',
@@ -36,14 +35,14 @@ def connex_get(url_,tok):
 
   return response.json()
 
-cb_server=config['CB_Info']['cb_server']
-cb_instance=config['DEFAULT']['instance']
+cb_server=os.environ.get("cb_server")
+cb_instance=os.environ.get("instance")
 fileName="../output/{}.json".format(cb_instance)
 __url="https://{}/api/v2".format(cb_server)
 
 #POST method to get the Token for the session
-uname=config['CB_Info']['username']
-pswd=config['CB_Info']['password']
+uname=os.environ.get("username")
+pswd=os.environ.get("password"
 url_token = "{}/api-token-auth/".format(__url)
 data_token={"username": uname,"password": pswd}
 res=connex_post(url_token,data_token)
@@ -192,8 +191,8 @@ import os, uuid
 from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient, __version__
 
 try:
-    connect_str=config['DEFAULT']['blob_conn_string']
-    container_name=config['DEFAULT']['blob_container_name']
+    connect_str=os.environ.get("blob_conn_string")
+    container_name=os.environ.get("blob_container_name")
     blob_service_client = BlobServiceClient.from_connection_string(connect_str)
     local_path="./"
     local_file_name = fileName
