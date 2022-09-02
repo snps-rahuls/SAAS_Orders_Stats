@@ -35,8 +35,12 @@ for env in environments:
     download_file_path = os.path.join(local_path, fileName)
     blob_client = blob_service_client.get_container_client(container= container_name)
 
-    with open(download_file_path, "wb") as download_file:
-        download_file.write(blob_client.download_blob(fileName).readall())
+    try:
+        with open(download_file_path, "wb") as download_file:
+            download_file.write(blob_client.download_blob(fileName).readall())
+    except Exception as e:
+        print("Error encountered for blob:{} {}".format(env,e))
+        continue
 
 
     query_count='{ "query": { "query_string": { "query": "instance:'+str(env.upper())+'" } } }'
@@ -53,7 +57,7 @@ for env in environments:
 
     # #capturing the last id from ES
     sort_lis=[]
-    with open(fileName,"r+") as fil:
+    with open(download_file_path,"r+") as fil:
         data_main=json.load(fil)
 
     import datetime
