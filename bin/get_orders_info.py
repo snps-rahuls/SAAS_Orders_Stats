@@ -9,9 +9,16 @@ import sys
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 from dotenv import load_dotenv
 
+f = open("/var/opt/cloudbolt/proserv/customer_settings.py","r")
+for line in f.readlines():
+  line=line.rstrip()
+  if 'TIME_ZONE' in line:
+    TIME_ZONE=line.split('=')[1]
+    TIME_ZONE=TIME_ZONE.replace(' ','')
+    TIME_ZONE=TIME_ZONE.replace('\'','')
+    break
+
 load_dotenv()
-
-
 
 # #GET orders---captures the data using API according to page number in reverse order that will later be sorted and captures the last(last__)page number
 # #Connection for token
@@ -57,6 +64,24 @@ res_orders=connex_get(url_orders,token_)
 last__=res_orders["_links"]["self"]["title"].split()[-1]
 last__=int(last__)+1
 
+#using the token to get the blueprints
+url_bps="{}/blueprints".format(__url)
+res_bps=connex_get(url_bps,token_)
+blueprints={}
+bp_collect=1
+while bp_collect:
+  for bp in res_bps['_embedded']:
+    bp_url=bp['_links']['self']['href']
+    bp_name=bp['_links']['self']['title']
+    blueprints[bp_url]={'name':bp_name}
+
+  if 'next' in res_bps['_links']:
+    next_url="https://{}{}".format(cb_server,res_bps['_links']['next']['href'])
+    res_bps=connex_get(next_url,token_)
+  else:
+    bp_collect=0
+
+
 #List to append data to
 data_from_orders={}
 
@@ -72,10 +97,64 @@ def fail_ure(o_id):
   url_err_append=res_failure["_links"]["jobs"][0]["href"]
   url_error="https://{}/{}".format(cb_server,url_err_append)
   res_error=connex_get(url_error,token_)
+  ret_val={'errors':None}
   try:
-    return(res_error["errors"])
+    if 'start-date' in res_error:
+      st_date = converttoawareTz(res_error['start-date'])
+      ret_val['start_date']= st_date.strftime("%Y-%m-%dT%H:%M:%S%z")
+    if 'end-date' in res_error:
+      ed_date = converttoawareTz(res_error['end-date'])
+      ret_val['end_date']= ed_date.strftime("%Y-%m-%dT%H:%M:%S%z")
+    if st_date is not None and ed_date is not None:
+      ret_val['duration']=(ed_date - st_date).total_seconds()
+    if 'errors' in res_error:
+      ret_val['errors']=res_error["errors"]
+    else:
+      ret_val['errors']=None
+    return ret_val
   except:
-    return None
+    return ret_val
+
+def converttoawareTz(dt_str):
+  datetime_obj = datetime.datetime.strptime(dt_str,'%Y-%m-%dT%H:%M:%S.%f' )
+  timezone = pytz.timezone(TIME_ZONE)
+  d_aware = timezone.localize(datetime_obj)
+  return d_aware
+
+#function to get the blueprint & other job details
+def order_details(o_id):
+  res_order=order_data(o_id)
+  url_job_append=res_order["_links"]["jobs"][0]["href"]
+  order_blueprint=None
+  if 'items' in res_order:
+    if 'deploy-items' in res_order['items']:
+      if 'blueprint' in res_order['items']['deploy-items'][0]:
+        order_blueprint_url=res_order['items']['deploy-items'][0]['blueprint']
+        order_blueprint=blueprints[order_blueprint_url]['name']
+  url_job="https://{}/{}".format(cb_server,url_job_append)
+  res_job=connex_get(url_job,token_)
+  st_date=None
+  ed_date=None
+  ret_val={"errors":None}
+  try:
+    if 'start-date' in res_job:
+      st_date = converttoawareTz(res_job['start-date'])
+      ret_val['start_date']= st_date.strftime("%Y-%m-%dT%H:%M:%S%z")
+    if 'end-date' in res_job:
+      ed_date = converttoawareTz(res_job['end-date'])
+      ret_val['end_date']= ed_date.strftime("%Y-%m-%dT%H:%M:%S%z")
+    if st_date is not None and ed_date is not None:
+      ret_val['duration']=(ed_date - st_date).total_seconds()
+    if 'errors' in res_job:
+      ret_val['errors']=res_job["errors"]
+    else:
+      ret_val['errors']=None
+    ret_val['blueprint']=order_blueprint
+    return ret_val
+  except Exception as e:
+    print("Error in order details fetch:{}".format(e))
+    return ret_val
+
 #function to load the parameters into the dictionary
 def load_data(dic,dat):
   temp = json_extract(dat, 'customer-id')
@@ -152,6 +231,13 @@ def page_data(last_page,odata):
                   continue
 
                 print("I:{} ID:{}".format(i,temp_dict["order_id"]))
+                odetails=order_details(temp_dict["order_id"])
+                temp_dict.update(odetails)
+                if temp_dict['request_name'] is None or temp_dict['request_name'] == "":
+                  if odetails['blueprint'] is not None:
+                    temp_dict['request_name']=odetails['blueprint']
+                data_from_orders[id_string]=temp_dict
+                '''
                 if temp_dict["status"]=="FAILURE":
                     error_=fail_ure(temp_dict["order_id"])
                     # if error_ is not None:
@@ -160,6 +246,7 @@ def page_data(last_page,odata):
                 else:
                     temp_dict["error"]=None
                     data_from_orders[id_string]=temp_dict
+                '''
         except Exception as e:
                 print("Error encountered:{}".format(e))
         finally:
